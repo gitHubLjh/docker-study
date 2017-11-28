@@ -1,0 +1,64 @@
+apply plugin: 'java'
+
+version "3.4.1"
+
+ext {
+    vertxVersion = "3.4.1"
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile("io.vertx:vertx-core:${vertxVersion}")
+    compile("io.vertx:vertx-web:${vertxVersion}")
+    compile("io.vertx:vertx-jdbc-client:${vertxVersion}")
+    compile("io.vertx:vertx-redis-client:${vertxVersion}")
+    compileOnly("io.vertx:vertx-codegen:${vertxVersion}")
+    compile 'mysql:mysql-connector-java:6.0.5'
+
+    testCompile("io.vertx:vertx-unit:${vertxVersion}")
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs += 'src/main/generated'
+        }
+    }
+    test {
+        java {
+
+        }
+    }
+}
+// compileOnly requires Gradle 2.12+
+task annotationProcessing(type: JavaCompile) {
+    source = sourceSets.main.java
+    classpath = configurations.compile + configurations.compileOnly
+    destinationDir = project.file('src/main/generated')
+    options.compilerArgs = [
+            "-proc:only",
+            "-processor", "io.vertx.codegen.CodeGenProcessor",
+            "-Acodegen.output=${destinationDir.absolutePath}"
+    ]
+}
+
+compileJava {
+    targetCompatibility = 1.8
+    sourceCompatibility = 1.8
+
+    dependsOn annotationProcessing
+}
+
+jar {
+    archiveName = 'todo-fat.jar'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    manifest {
+        attributes 'Main-Class': 'io.vertx.core.Launcher' // 可以通过Vert.x Launcher来启动对应的Verticle
+        attributes 'Main-Verticle': 'io.vertx.blueprint.todolist.verticles.SingleApplicationVerticle' // 启动指定的Verticle
+    }
+}
+// -x command line argument which excludes any task.
